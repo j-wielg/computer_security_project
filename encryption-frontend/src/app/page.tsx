@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import { vigenereEncrypt, vigenereDecrypt } from "@/utils/vigenere";
 
 export default function Home() {
   const [vigenereKey, setVigenereKey] = useState("");
@@ -23,13 +24,13 @@ export default function Home() {
   const [rsaResult, setRsaResult] = useState("");
 
   const handleVigenereEncrypt = () => {
-    // TODO: Implement Vigenere encryption
-    setVigenereResult("Encrypted: " + vigenereText);
+    const encrypted = vigenereEncrypt(vigenereText, vigenereKey);
+    setVigenereResult("Encrypted: " + encrypted);
   };
 
   const handleVigenereDecrypt = () => {
-    // TODO: Implement Vigenere decryption
-    setVigenereResult("Decrypted: " + vigenereText);
+    const decrypted = vigenereDecrypt(vigenereText, vigenereKey);
+    setVigenereResult("Decrypted: " + decrypted);
   };
 
   const handleRsaEncrypt = () => {
@@ -87,7 +88,7 @@ export default function Home() {
               </div>
               {vigenereResult && (
                 <div className="mt-4 p-4 bg-muted rounded-md">
-                  <p className="font-medium">Result:</p>
+                  <p className="text-lg font-semibold underline">Result:</p>
                   <p>{vigenereResult}</p>
                 </div>
               )}
@@ -139,7 +140,7 @@ export default function Home() {
               </div>
               {rsaResult && (
                 <div className="mt-4 p-4 bg-muted rounded-md">
-                  <p className="font-medium">Result:</p>
+                  <p className="text-lg font-semibold underline">Result:</p>
                   <p>{rsaResult}</p>
                 </div>
               )}
