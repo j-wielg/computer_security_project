@@ -112,6 +112,14 @@ export default function Home() {
     }
   }
 
+  const handleAesEncrypt = () => {
+
+  }
+
+  const handleAesDecrypt = () => {
+
+  }
+
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <h1 className="text-3xl font-bold mb-8 text-center">Encryption Tools</h1>
@@ -292,6 +300,14 @@ export default function Home() {
                     "Enter text to encrypt here"
                   }
                 />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleAesEncrypt}>Encrypt</Button>
+                { (aesDataType != "ascii") &&
+                  <Button variant="outline" onClick={handleAesDecrypt}>
+                    Decrypt
+                  </Button>
+                }
               </div>
             </CardContent>
           </Card>
