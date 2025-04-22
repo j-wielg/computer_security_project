@@ -2,7 +2,7 @@ import { Input, TextArea } from "@/components/ui/input";
 import { Label } from "@radix-ui/react-label";
 import { Button } from "@/components/ui/button";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { aesEncrypt, aesDecrypt, printBlock } from "@/utils/aes";
 
 
@@ -18,6 +18,19 @@ export function AES() {
   const [dataStatus, setDataStatus] = useState("");
   const [aesResult, setAesResult] = useState([] as Array<string>);
   const [initVector, setInitVector] = useState("");
+  const [initVectorStatus, setInitVectorStatus] = useState("");
+
+  useEffect(() => {
+    handleAesDataEnter(aesData);
+  }, [aesDataType]);
+
+  useEffect(() => {
+    handleAesKeyEnter(aesKey);
+  }, [aesKeySize]);
+
+  useEffect(() => {
+    handleAesIVEnter(initVector);
+  }, [blockMode]);
 
   const handleAesKeyEnter = (value: string) => {
     setAesKey(value);
@@ -85,6 +98,7 @@ export function AES() {
     setDataStatus("");
     let valid_bin = "01 -_\n";
     let valid_hex = "0123456789abcdefABCDEF -_\n";
+    let len = 0;
     if (aesDataType == 'ascii') {
       for (let c of value) {
         if (c.charCodeAt(0) > 255) {
@@ -92,26 +106,95 @@ export function AES() {
         }
       }
     } else if (aesDataType == 'binary') {
-      if (aesData.startsWith("0x")) {
+      if (value.startsWith("0x")) {
         for (let c of value.slice(2)) {
           if (!valid_hex.includes(c)) {
             setDataStatus("Character '" + c + "' is not a valid hexadecimal character");
+            return;
+          } else if (c != ' ' && c != '-' && c != '_' && c != '\n') {
+            ++len;
           }
         }
-      } else if (aesData.startsWith("0b")) {
+        if (len % 2 != 0) {
+          setDataStatus("Input data must be byte-aligned");
+          return;
+        }
+      } else if (value.startsWith("0b")) {
         for (let c of value.slice(2)) {
           if (!valid_bin.includes(c)) {
             setDataStatus("Character '" + c + "' is not a valid binary character");
+            return;
+          } else if (c != ' ' && c != '-' && c != '_' && c != '\n') {
+            ++len;
           }
+        }
+        if (len % 8 != 0) {
+          setDataStatus("Input data must be byte-aligned");
+          return;
         }
       } else {
         for (let c of value) {
           if (!valid_hex.includes(c)) {
             setDataStatus("Character '" + c + "' is not a valid hexadecimal character");
+            return;
+          } else if (c != ' ' && c != '-' && c != '_' && c != '\n') {
+            ++len;
           }
+        }
+        if (len % 2 != 0) {
+          setDataStatus("Input data must be byte-aligned");
+          return;
         }
       }
     }
+  }
+
+  const handleAesIVEnter = (value: string) => {
+    setInitVector(value);
+    let len = 0;
+    let num_bytes = (blockMode == 1) ? 16 : 12;
+    let valid_bin = "01";
+    let valid_hex = "0123456789abcdefABCDEF";
+    let target_len = 0;
+    if (value.startsWith("0b")) {
+      target_len = num_bytes * 8;
+      for (let c of value.slice(2)) {
+        if (!valid_bin.includes(c)) {
+          setInitVectorStatus("Character '" + c + "' is not a valid binary character");
+          return;
+        } else {
+          ++len;
+        }
+      }
+    } else if (value.startsWith("0x")) {
+      target_len = num_bytes * 2;
+      for (let c of value.slice(2)) {
+        if (!valid_hex.includes(c)) {
+          setInitVectorStatus("Character '" + c + "' is not a valid hexadecimal character");
+          return;
+        } else {
+          ++len;
+        }
+      }
+    } else {
+      target_len = num_bytes * 2;
+      for (let c of value) {
+        if (!valid_hex.includes(c)) {
+          setInitVectorStatus("Character '" + c + "' is not a valid hexadecimal character");
+          return;
+        } else {
+          ++len;
+        }
+      }
+    }
+    if (len > target_len) {
+      setInitVectorStatus("Input is too long");
+      return;
+    } else if (len < target_len) {
+      setInitVectorStatus("Input is too short");
+      return;
+    }
+    setInitVectorStatus("");
   }
 
   const handleAesEncrypt = () => {
@@ -150,9 +233,24 @@ export function AES() {
         }
       }
     }
-    // Step 3: Do the encryption
-    aesEncrypt(data, blockMode, aesKeySize, key);
-    // Step 4: Print the encrypted blocks
+    // Step 3: Get the IV
+    let iv: number[] = []
+    if (initVector.startsWith("0b")) {
+      for (let i=2; i < initVector.length; i += 8) {
+        iv.push(Number("0b" + initVector.slice(i, i+8)));
+      }
+    } else {
+      let i=0;
+      if (initVector.startsWith("0x")) {
+        i += 2;
+      }
+      for (let i=2; i < initVector.length; i += 2) {
+        iv.push(Number("0x" + initVector.slice(i, i+2)));
+      }
+    }
+    // Step 4: Do the encryption
+    aesEncrypt(data, blockMode, aesKeySize, key, iv);
+    // Step 5: Print the encrypted blocks
     let res: string[] = [];
     for (let i=0; i < (data.length / 16); ++i) {
       res.push(printBlock(data.slice(i*16, (i+1)*16)));
@@ -221,7 +319,7 @@ export function AES() {
         </select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="aes-datatype" className="block">Data Type</Label>
+        <Label htmlFor="aes-datatype" className="block">Input Data Type</Label>
         <select 
           className="bg-muted px-2 py-2 outline"
           onChange={(e) => setAesDataType(e.target.value)}
@@ -275,21 +373,31 @@ export function AES() {
           <Input
             id="aes-iv"
             value={initVector}
-            onChange={(e) => setInitVector(e.target.value)}
+            onChange={(e) => handleAesIVEnter(e.target.value)}
             placeholder="Preface binary with 0b and hex with 0x"
             className={(initVector) ? "font-mono" : ""}
           />
+          {initVectorStatus && (
+            <div>
+              <p className="text-red-700 text-sm">{initVectorStatus}</p>
+            </div>
+          )}
         </div>
       )}
       <div className="flex gap-2">
-        { (aesKeyInputStatus.length == 0) &&
+        { !aesKeyInputStatus && !initVectorStatus && !dataStatus &&
           <Button onClick={handleAesEncrypt}>Encrypt</Button>
         }
         { (aesDataType != "ascii") &&
           (aesKeyInputStatus.length == 0) &&
-          <Button variant="outline" onClick={handleAesDecrypt}>
-            Decrypt
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleAesDecrypt}>
+              Decrypt as Binary
+            </Button>
+            <Button variant="outline" onClick={handleAesDecrypt}>
+              Decrypt as ASCII
+            </Button>
+          </div>
         }
       </div>
       {aesResult.length > 0 && (
