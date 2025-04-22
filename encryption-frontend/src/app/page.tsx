@@ -254,6 +254,7 @@ export default function Home() {
                   value={aesKey}
                   onChange={(e) => handleAesKeyEnter(e.target.value)}
                   placeholder="Enter encryption key"
+                  className="font-mono"
                 />
                 {aesKeyInputStatus.length > 0 && (
                   <div>
