@@ -92,7 +92,7 @@ export function printBlock(block: number[]) {
  *
  * @param block - An array of 16 bytes
  */
-function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
+export function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
     const addRoundKey = (index: number) => {
         for (let i=0; i < 4; ++i) {
             let word = W[index * 4 + i];
@@ -147,6 +147,7 @@ function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: num
     if (W.length == 0) {
         W = aesKeygen(key, size)
     }
+    // console.log("Round", 0, ":", printBlock(block));
     // Step 2: XOR the first round key with the data
     addRoundKey(0);
     // Step 3: Do 9, 11, or 13 rounds depending on the size parameter
@@ -169,12 +170,14 @@ function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: num
         mixColumns();
         // Substep 4: Add the round key
         addRoundKey(i + 1);
+        // console.log("Round", i+1, ":", printBlock(block));
     }
     for (let j=0; j < 16; ++j) {
         block[j] = aesSBox(block[j]);
     }
     shiftRows();
     addRoundKey(rounds + 1);
+    // console.log("Round", rounds+1, ":", printBlock(block));
 }
 
 
@@ -234,7 +237,7 @@ function aesSBox(byte: number) : number {
 /**
  * Implements round key generation for the AES algorithm
  */
-function aesKeygen(key: bigint, size: number) {
+export function aesKeygen(key: bigint, size: number) {
     const RotWord = (value: number) => {
         let byte = (value & 0xFF000000) >>> 24;
         value = (value << 8) & 0xFFFFFFFF;
@@ -280,10 +283,11 @@ function aesKeygen(key: bigint, size: number) {
                 RCON[Math.trunc(i / N) - 1]
             );
         } else if ((N > 6) && (i % N == 4)) {
-            W[i] = W[i - N] + SubWord(W[i - 1]);
+            W[i] = W[i - N] ^ SubWord(W[i - 1]);
         } else {
             W[i] = W[i - N] ^ W[i - 1];
         }
+        // console.log((W[i]>>>0).toString(16).padStart(8, "0"));
     }
     return W;
 }
