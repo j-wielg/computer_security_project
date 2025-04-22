@@ -35,15 +35,21 @@ const RCON = [
 
 /**
  * Encrypts a single block using the AES encryption algorithm.
- * Bitstrings are encoded in such a way that the most-significant bit represents
- * the first bit.
  *
- * @param block - A 128-bit integer representing the block to encrypt
- *
- * @returns A 128-bit number whose bits are the encrypted block
+ * @param block - An array of 32 bytes
  */
-function aesBlockEncrypt(block: number) : number {
-    return 1
+function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
+    // Step 1: Generation of round keys
+    if (W.length == 0) {
+        W = aesKeygen(key, size)
+    }
+    // Step 2: XOR the first round key with the data
+    for (let i=0; i < 4; ++i) {
+        let word = W[i];
+        for (let j=0; j < 8; ++j) {
+        }
+
+    }
 }
 
 
@@ -74,11 +80,11 @@ function aesSBox(byte: number) : number {
 /**
  * Implements round key generation for the AES algorithm
  */
-function aesKeygen(key: bigint, size: number) {
+export function aesKeygen(key: bigint, size: number) {
     const RotWord = (value: number) => {
-        let byte = value & 0xFF000000;
+        let byte = (value & 0xFF000000) >>> 24;
         value = (value << 8) & 0xFFFFFFFF;
-        value |= (byte >> 24);
+        value |= byte;
         return value;
     }
     const SubWord = (value: number) => {
@@ -105,12 +111,12 @@ function aesKeygen(key: bigint, size: number) {
     let W: number[] = []
     let K: number[] = []
     for (let i=0; i < N; ++i) {
-        let mask = BigInt(0xFFFFFFFF) << BigInt(32 * (N - i + 1))
+        let mask = BigInt(0xFFFFFFFF) << BigInt(32 * (N - i - 1))
         let value = mask & key
-        key >>= BigInt(32 * (N - i + 1))
-        K[i] = Number(key)
+        value >>= BigInt(32 * (N - i - 1))
+        K[i] = Number(value)
     }
-    for (let i=0; i < 4*R - 1; ++i) {
+    for (let i=0; i < 4*R; ++i) {
         if (i < N) {
             W[i] = K[i];
         } else if (i % N == 0) {
@@ -125,4 +131,5 @@ function aesKeygen(key: bigint, size: number) {
             W[i] = W[i - N] ^ W[i - 1];
         }
     }
+    return W;
 }
