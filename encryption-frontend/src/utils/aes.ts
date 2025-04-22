@@ -446,6 +446,8 @@ function aesKeygen(key: bigint, size: number) {
  * @param iv
  * If using chained blocks, this specifies the initialization vector (16 byte array)
  * If using counter mode, this specifies the nonce (12 byte array)
+ *
+ * @returns Whether or not the decryption was successful.
  */
 export function aesDecrypt(
     bytes: number[],
@@ -453,8 +455,38 @@ export function aesDecrypt(
     size: number,
     key: bigint,
     iv: number[] = []
-) {
+) : boolean {
+    if (bytes.length % 16 != 0) {
+        return false;
+    }
+    // Generates the round keys
+    let round_keys: number[] = aesKeygen(key, size);
+    let num_blocks = bytes.length / 16;
+    // Decrypts the blocks
+    if (mode == 0) {
+        for (let i=0; i < num_blocks; ++i) {
+            let block = bytes.slice(16*i, 16*(i+1));
+            aesBlockDecrypt(block, key, size, round_keys);
+            for (let k=0; k < 16; ++k) {
+                bytes[16 * i + k] = block[k];
+            }
+        }
+    } else if (mode == 1) {
 
+    } else if (mode == 2) {
+
+    } else {
+        return false;
+    }
+    // Removes padding while looking for the sentinel
+    let byte = bytes.pop();
+    if (byte != 0) {
+        return false;
+    }
+    while (byte == 0) {
+        byte = bytes.pop();
+    }
+    return (byte == 0xFF);
 }
 
 
@@ -547,5 +579,4 @@ export function aesBlockDecrypt(block: Array<number>, key: bigint, size: number,
         block[j] = aesInvSBox(block[j]);
     }
     addRoundKey(0);
-    console.log(printBlock(block));
 }
