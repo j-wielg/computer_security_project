@@ -92,7 +92,7 @@ export function printBlock(block: number[]) {
  *
  * @param block - An array of 16 bytes
  */
-export function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
+function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
     const addRoundKey = (index: number) => {
         for (let i=0; i < 4; ++i) {
             let word = W[index * 4 + i];
@@ -278,7 +278,7 @@ function aesSBox(byte: number) : number {
 /**
  * Implements round key generation for the AES algorithm
  */
-export function aesKeygen(key: bigint, size: number) {
+function aesKeygen(key: bigint, size: number) {
     const RotWord = (value: number) => {
         let byte = (value & 0xFF000000) >>> 24;
         value = (value << 8) & 0xFFFFFFFF;
@@ -331,4 +331,29 @@ export function aesKeygen(key: bigint, size: number) {
         // console.log((W[i]>>>0).toString(16).padStart(8, "0"));
     }
     return W;
+}
+
+
+/**
+ * Decrypts a sequence of bits using the AES encryption algorithm
+ *
+ * @param bytes - A sequence of bytes to decrypt. Note that this will be modified by the function.
+ * @param mode - What block-chaining mode was used. Posssible values are:
+ * 0 - Electronic code book (EBC)
+ * 1 - Cipher-Block Chaining (CBC)
+ * 2 - Counter (CTR)
+ * @param size - The size of the key. Can be 128, 192, or 256.
+ * @param key - The key being used
+ * @param iv
+ * If using chained blocks, this specifies the initialization vector (16 byte array)
+ * If using counter mode, this specifies the nonce (8 byte array)
+ */
+export function aesDecrypt(
+    bytes: number[],
+    mode: number,
+    size: number,
+    key: bigint,
+    iv: number[] = []
+) {
+
 }
