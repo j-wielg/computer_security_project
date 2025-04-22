@@ -193,7 +193,7 @@ function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: num
  * @param key - The key being used
  * @param iv
  * If using chained blocks, this specifies the initialization vector (16 byte array)
- * If using counter mode, this specifies the nonce (8 byte array)
+ * If using counter mode, this specifies the nonce (12 byte array)
  */
 export function aesEncrypt(
     bytes: number[],
@@ -346,7 +346,7 @@ function aesKeygen(key: bigint, size: number) {
  * @param key - The key being used
  * @param iv
  * If using chained blocks, this specifies the initialization vector (16 byte array)
- * If using counter mode, this specifies the nonce (8 byte array)
+ * If using counter mode, this specifies the nonce (12 byte array)
  */
 export function aesDecrypt(
     bytes: number[],
