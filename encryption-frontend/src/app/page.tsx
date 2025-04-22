@@ -308,8 +308,11 @@ export default function Home() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleAesEncrypt}>Encrypt</Button>
+                { (aesKeyInputStatus.length == 0) &&
+                  <Button onClick={handleAesEncrypt}>Encrypt</Button>
+                }
                 { (aesDataType != "ascii") &&
+                  (aesKeyInputStatus.length == 0) &&
                   <Button variant="outline" onClick={handleAesDecrypt}>
                     Decrypt
                   </Button>
