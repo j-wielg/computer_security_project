@@ -19,6 +19,8 @@ export function AES() {
   const [aesResult, setAesResult] = useState([] as Array<string>);
   const [initVector, setInitVector] = useState("");
   const [initVectorStatus, setInitVectorStatus] = useState("");
+  const [resultType, setResultType] = useState('binary');
+  const [aesError, setAesError] = useState("");
 
   useEffect(() => {
     handleAesDataEnter(aesData);
@@ -260,9 +262,10 @@ export function AES() {
       res.push(printBlock(data.slice(i*16, (i+1)*16)));
     }
     setAesResult(res);
+    setAesError("");
   }
 
-  const handleAesDecrypt = () => {
+  const handleAesDecrypt = (output_type: number = 0) => {
     // Step 1: Turn the key string into a bigint
     let whitespace = " _-\n";
     let bin = false;
@@ -294,8 +297,38 @@ export function AES() {
         data.push(Number("0x" + aesData.slice(i, i+2)));
       }
     }
-    // Step 3: Decrypt
-
+    // Step 3: Get the IV
+    let iv: number[] = []
+    if (initVector.startsWith("0b")) {
+      for (let i=2; i < initVector.length; i += 8) {
+        iv.push(Number("0b" + initVector.slice(i, i+8)));
+      }
+    } else {
+      let i=0;
+      if (initVector.startsWith("0x")) {
+        i += 2;
+      }
+      for (let i=2; i < initVector.length; i += 2) {
+        iv.push(Number("0x" + initVector.slice(i, i+2)));
+      }
+    }
+    // Step 4: Decrypt
+    if (!aesDecrypt(data, blockMode, aesKeySize, key, iv)) {
+      setAesError("Failed to Decrypt - Sentinel Not Found");
+      setAesResult([]);
+      return;
+    }
+    setAesError("");
+    // Step 5: Interpret data
+    let res: string[] = [];
+    if (output_type == 0) {
+      setResultType('binary');
+      for (let i=0; i < (data.length / 16); ++i) {
+        res.push(printBlock(data.slice(i*16, (i+1)*16)));
+      }
+    } else if (output_type == 1) {
+      setResultType('ascii');
+    }
   }
 
   return (
@@ -395,10 +428,10 @@ export function AES() {
         { (aesDataType != "ascii") &&
           (aesKeyInputStatus.length == 0) &&
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleAesDecrypt}>
+            <Button variant="outline" onClick={() => {handleAesDecrypt(0)}}>
               Decrypt as Binary
             </Button>
-            <Button variant="outline" onClick={handleAesDecrypt}>
+            <Button variant="outline" onClick={() => {handleAesDecrypt(1)}}>
               Decrypt as ASCII
             </Button>
           </div>
@@ -407,11 +440,20 @@ export function AES() {
       {aesResult.length > 0 && (
         <div className="mt-4 p-4 bg-muted rounded-md">
           <p className="text-lg font-semibold underline">Result:</p>
-          {aesResult.map((line, index) : any => {
-            return <p className="font-mono" key={index}>{line}</p>;
-          })}
+          {(resultType == 'binary') ? (
+            aesResult.map((line, index) : any => {
+              return <p className="font-mono" key={index}>{line}</p>;
+          })) : (
+            aesResult.map((line, index) : any => {
+              return <p key={index}>{line}</p>;
+          }))}
         </div>
       )}
+      {aesError &&
+        <div className="mt-4 p-4 bg-muted rounded-md">
+          <p className="text-lg font-semibold underline text-red-700">{aesError}</p>
+        </div>
+      }
     </div>
   );
 }
