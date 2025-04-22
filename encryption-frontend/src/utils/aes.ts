@@ -472,7 +472,22 @@ export function aesDecrypt(
             }
         }
     } else if (mode == 1) {
-
+        let prev1: number[] = [];
+        let prev2: number[] = [];
+        for (let k=0; k < 16; ++k) {
+            prev1[k] = iv[k];
+        }
+        for (let i=0; i < num_blocks; ++i) {
+            let block = bytes.slice(16*i, 16*(i+1));
+            for (let k=0; k < 16; ++k) {
+                prev2[k] = block[k];
+            }
+            aesBlockDecrypt(block, key, size, round_keys);
+            for (let k=0; k < 16; ++k) {
+                bytes[16 * i + k] = block[k] ^ prev1[k];
+                prev1[k] = prev2[k];
+            }
+        }
     } else if (mode == 2) {
 
     } else {
