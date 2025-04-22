@@ -150,6 +150,10 @@ export function AES() {
   }
 
   const handleAesIVEnter = (value: string) => {
+    if (blockMode == 0) {
+      setInitVectorStatus("");
+      return;
+    }
     setInitVector(value);
     let len = 0;
     let num_bytes = (blockMode == 1) ? 16 : 12;
