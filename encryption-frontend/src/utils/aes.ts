@@ -71,21 +71,28 @@ const MUL3 = [
 
 
 /**
+ * Returns the hexadecimal representation of a 16-byte block.
+ *
+ * @param block - An array containing 16 bytes
+ */
+export function printBlock(block: number[]) {
+    let outStr = "";
+    for (let i=0; i < 4; ++i) {
+        for (let j=0; j < 4; ++j) {
+            outStr += block[4*i + j].toString(16).padStart(2, "0");
+        }
+        if (i != 3) outStr += " ";
+    }
+    return outStr;
+}
+
+
+/**
  * Encrypts a single block using the AES encryption algorithm.
  *
  * @param block - An array of 16 bytes
  */
-export function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
-    const printBlock = () => {
-        let outStr = "";
-        for (let i=0; i < 4; ++i) {
-            for (let j=0; j < 4; ++j) {
-                outStr += block[4*i + j].toString(16).padStart(2, "0");
-            }
-            if (i != 3) outStr += " ";
-        }
-        return outStr;
-    }
+function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
     const addRoundKey = (index: number) => {
         for (let i=0; i < 4; ++i) {
             let word = W[index * 4 + i];
@@ -174,15 +181,44 @@ export function aesBlockEncrypt(block: Array<number>, key: bigint, size: number,
 /**
  * Encrypts a sequence of bits using the AES encryption algorithm
  *
- * @param blocks - A sequence of blocks to encrypt
+ * @param bytes - A sequence of bytes to encrypt. Note that this will be modified by the function.
  * @param mode - What block-chaining mode to use. Posssible values are:
  * 0 - Electronic code book
  * 1 - Chained blocks
  * 2 - Counter
+ * @param size - The size of the key. Can be 128, 192, or 256.
+ * @param key - The key being used
  * @param iv - If using chained blocks, this specifies the initialization vector
  */
-export function aesEncrypt(blocks: number[], mode: number, iv: number) : Array<number> {
-    return []
+export function aesEncrypt(
+    bytes: number[],
+    mode: number,
+    size: number,
+    key: bigint,
+    iv: number = 0
+)
+{
+    // Adds a few bytes to the end of the bytes array as a sentinel.
+    // This will help us in the decoding process.
+    bytes.push(0xFF);
+    bytes.push(0x00);
+    // Makes sure that the number of bytes is divisible by 16
+    while (bytes.length % 16 != 0) {
+        bytes.push(0x00);
+    }
+    // Generates the round keys
+    let round_keys = aesKeygen(key, size);
+    if (mode == 0) {
+        // Encrypt each block
+        let num_blocks = Math.trunc(bytes.length / 16);
+        for (let i=0; i < num_blocks; ++i) {
+            let block = bytes.slice(i * 16, (i + 1) * 16);
+            aesBlockEncrypt(block, key, size, round_keys);
+            for (let j=0; j < 16; ++j) {
+                bytes[16 * i + j] = block[j];
+            }
+        }
+    }
 }
 
 
@@ -198,7 +234,7 @@ function aesSBox(byte: number) : number {
 /**
  * Implements round key generation for the AES algorithm
  */
-export function aesKeygen(key: bigint, size: number) {
+function aesKeygen(key: bigint, size: number) {
     const RotWord = (value: number) => {
         let byte = (value & 0xFF000000) >>> 24;
         value = (value << 8) & 0xFFFFFFFF;
