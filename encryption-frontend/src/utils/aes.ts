@@ -36,9 +36,19 @@ const RCON = [
 /**
  * Encrypts a single block using the AES encryption algorithm.
  *
- * @param block - An array of 32 bytes
+ * @param block - An array of 16 bytes
  */
-function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
+export function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: number[] = []) {
+    const printBlock = () => {
+        let outStr = "";
+        for (let i=0; i < 4; ++i) {
+            for (let j=0; j < 4; ++j) {
+                outStr += block[4*i + j].toString(16).padStart(2, "0");
+            }
+            if (i != 3) outStr += " ";
+        }
+        return outStr;
+    }
     // Step 1: Generation of round keys
     if (W.length == 0) {
         W = aesKeygen(key, size)
@@ -46,10 +56,16 @@ function aesBlockEncrypt(block: Array<number>, key: bigint, size: number, W: num
     // Step 2: XOR the first round key with the data
     for (let i=0; i < 4; ++i) {
         let word = W[i];
-        for (let j=0; j < 8; ++j) {
+        let mask = 0xFF000000;
+        let shift = 24;
+        for (let j=0; j < 4; ++j) {
+            let byte = (word & mask) >>> shift;
+            block[4 * i + j] ^= byte;
+            mask >>>= 8;
+            shift -= 8;
         }
-
     }
+    console.log("Round 0: " + printBlock());
 }
 
 
@@ -116,6 +132,7 @@ export function aesKeygen(key: bigint, size: number) {
         value >>= BigInt(32 * (N - i - 1))
         K[i] = Number(value)
     }
+    console.log("Key 0");
     for (let i=0; i < 4*R; ++i) {
         if (i < N) {
             W[i] = K[i];
@@ -125,11 +142,13 @@ export function aesKeygen(key: bigint, size: number) {
                 SubWord(RotWord(W[i-1])) ^ 
                 RCON[Math.trunc(i / N) - 1]
             );
+            console.log("Key", i/N);
         } else if ((N > 6) && (i % N == 4)) {
             W[i] = W[i - N] + SubWord(W[i - 1]);
         } else {
             W[i] = W[i - N] ^ W[i - 1];
         }
+        console.log("    ", (W[i]>>>0).toString(16));
     }
     return W;
 }
