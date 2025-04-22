@@ -28,6 +28,8 @@ export default function Home() {
   const [aesKeyWarning, setAesKeyWarning] = useState(false);
   const [aesKeySize, setAesKeySize] = useState(128);
   const [blockMode, setBlockMode] = useState(0);
+  const [aesData, setAesData] = useState("");
+  const [aesDataType, setAesDataType] = useState("ascii");
 
   const handleVigenereEncrypt = () => {
     const encrypted = vigenereEncrypt(vigenereText, vigenereKey);
@@ -248,13 +250,23 @@ export default function Home() {
                 </select>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="aes-datatype">Data Type</Label>
+                <select 
+                  className="bg-muted px-2 py-2 outline"
+                  onChange={(e) => setAesDataType(e.target.value)}
+                >
+                  <option value="ascii">ASCII Text</option>
+                  <option value="binary">Binary</option>
+                </select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="aes-key">AES Key</Label>
                 <Input
                   id="aes-key"
                   value={aesKey}
                   onChange={(e) => handleAesKeyEnter(e.target.value)}
-                  placeholder="Enter encryption key"
-                  className="font-mono"
+                  placeholder="Preface binary with 0b and hex with 0x"
+                  className={(aesKey.length > 0) ? "font-mono" : ""}
                 />
                 {aesKeyInputStatus.length > 0 && (
                   <div>
@@ -266,6 +278,20 @@ export default function Home() {
                     <p className="text-yellow-700 text-sm">Keys under {aesKeySize} bits will be left-padded with zeros</p>
                   </div>
                 )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="aes-data">Data</Label>
+                <Input
+                  id="aes-data"
+                  value={aesData}
+                  onChange={(e) => setAesData(e.target.value)}
+                  className={(aesDataType == "binary" && aesData.length > 0) ? "font-mono" : ""}
+                  placeholder={
+                    (aesDataType == "binary") ?
+                    "Enter hex (0x) or binary (0b) data" :
+                    "Enter text to encrypt here"
+                  }
+                />
               </div>
             </CardContent>
           </Card>
