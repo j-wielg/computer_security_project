@@ -10,13 +10,14 @@ import { aesEncrypt, aesDecrypt, printBlock } from "@/utils/aes";
 export function AES() {
   const [aesKey, setAesKey] = useState("");
   const [aesKeyInputStatus, setAesKeyInputStatus] = useState("");
-  const [aesDataInputStatus, setAesDataInputStatus] = useState("");
   const [aesKeyWarning, setAesKeyWarning] = useState(false);
   const [aesKeySize, setAesKeySize] = useState(128);
   const [blockMode, setBlockMode] = useState(0);
   const [aesData, setAesData] = useState("");
   const [aesDataType, setAesDataType] = useState("ascii");
+  const [dataStatus, setDataStatus] = useState("");
   const [aesResult, setAesResult] = useState([] as Array<string>);
+  const [initVector, setInitVector] = useState("");
 
   const handleAesKeyEnter = (value: string) => {
     setAesKey(value);
@@ -76,6 +77,40 @@ export function AES() {
     } else {
       setAesKeyWarning(false);
       setAesKeyInputStatus("");
+    }
+  }
+
+  const handleAesDataEnter = (value: string) => {
+    setAesData(value);
+    setDataStatus("");
+    let valid_bin = "01 -_\n";
+    let valid_hex = "0123456789abcdefABCDEF -_\n";
+    if (aesDataType == 'ascii') {
+      for (let c of value) {
+        if (c.charCodeAt(0) > 255) {
+          setDataStatus("Character '" + c + "' cannot be encoded as an ASCII character");
+        }
+      }
+    } else if (aesDataType == 'binary') {
+      if (aesData.startsWith("0x")) {
+        for (let c of value.slice(2)) {
+          if (!valid_hex.includes(c)) {
+            setDataStatus("Character '" + c + "' is not a valid hexadecimal character");
+          }
+        }
+      } else if (aesData.startsWith("0b")) {
+        for (let c of value.slice(2)) {
+          if (!valid_bin.includes(c)) {
+            setDataStatus("Character '" + c + "' is not a valid binary character");
+          }
+        }
+      } else {
+        for (let c of value) {
+          if (!valid_hex.includes(c)) {
+            setDataStatus("Character '" + c + "' is not a valid hexadecimal character");
+          }
+        }
+      }
     }
   }
 
@@ -209,7 +244,7 @@ export function AES() {
             <p className="text-red-700 text-sm">{aesKeyInputStatus}</p>
           </div>
         )}
-        {aesKeyWarning && aesKeyInputStatus.length == 0 && (
+        {aesKeyWarning && !aesKeyInputStatus && (
           <div>
             <p className="text-yellow-700 text-sm">Keys under {aesKeySize} bits will be left-padded with zeros</p>
           </div>
@@ -220,7 +255,7 @@ export function AES() {
         <TextArea
           id="aes-data"
           value={aesData}
-          onChange={(e) => setAesData(e.target.value)}
+          onChange={(e) => handleAesDataEnter(e.target.value)}
           className={(aesDataType == "binary" && aesData.length > 0) ? "font-mono" : ""}
           placeholder={
             (aesDataType == "binary") ?
@@ -228,7 +263,24 @@ export function AES() {
               "Enter text to encrypt here"
           }
         />
+        {dataStatus && (
+          <p className="text-red-700 text-sm">{dataStatus}</p>
+        )}
       </div>
+      {(blockMode > 0) && (
+        <div className="space-y-2">
+          <Label htmlFor="aes-iv">{(blockMode == 1) ? 
+            "Initialization Vector (16 Bytes)" : "Nonce (12 Bytes)"
+          }</Label>
+          <Input
+            id="aes-iv"
+            value={initVector}
+            onChange={(e) => setInitVector(e.target.value)}
+            placeholder="Preface binary with 0b and hex with 0x"
+            className={(initVector) ? "font-mono" : ""}
+          />
+        </div>
+      )}
       <div className="flex gap-2">
         { (aesKeyInputStatus.length == 0) &&
           <Button onClick={handleAesEncrypt}>Encrypt</Button>
@@ -240,7 +292,7 @@ export function AES() {
           </Button>
         }
       </div>
-      {aesResult && (
+      {aesResult.length > 0 && (
         <div className="mt-4 p-4 bg-muted rounded-md">
           <p className="text-lg font-semibold underline">Result:</p>
           {aesResult.map((line, index) : any => {
