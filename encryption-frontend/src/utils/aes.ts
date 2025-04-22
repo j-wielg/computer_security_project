@@ -186,19 +186,21 @@ export function aesBlockEncrypt(block: Array<number>, key: bigint, size: number,
  *
  * @param bytes - A sequence of bytes to encrypt. Note that this will be modified by the function.
  * @param mode - What block-chaining mode to use. Posssible values are:
- * 0 - Electronic code book
- * 1 - Chained blocks
- * 2 - Counter
+ * 0 - Electronic code book (EBC)
+ * 1 - Cipher-Block Chaining (CBC)
+ * 2 - Counter (CTR)
  * @param size - The size of the key. Can be 128, 192, or 256.
  * @param key - The key being used
- * @param iv - If using chained blocks, this specifies the initialization vector
+ * @param iv
+ * If using chained blocks, this specifies the initialization vector (16 byte array)
+ * If using counter mode, this specifies the nonce (8 byte array)
  */
 export function aesEncrypt(
     bytes: number[],
     mode: number,
     size: number,
     key: bigint,
-    iv: number = 0
+    iv: number[] = []
 )
 {
     // Adds a few bytes to the end of the bytes array as a sentinel.
@@ -211,13 +213,33 @@ export function aesEncrypt(
     }
     // Generates the round keys
     let round_keys = aesKeygen(key, size);
+    // Encrypts based on the mode
+    let num_blocks = Math.trunc(bytes.length / 16);
     if (mode == 0) {
-        // Encrypt each block
-        let num_blocks = Math.trunc(bytes.length / 16);
         for (let i=0; i < num_blocks; ++i) {
             let block = bytes.slice(i * 16, (i + 1) * 16);
             aesBlockEncrypt(block, key, size, round_keys);
             for (let j=0; j < 16; ++j) {
+                bytes[16 * i + j] = block[j];
+            }
+        }
+    } else if (mode == 1) {
+        let previous_block: number[] = [];
+        // Uses the initialization vector
+        for (let i=0; i < num_blocks; ++i) {
+            let block = bytes.slice(i * 16, (i + 1) * 16);
+            if (i == 0) {
+                for (let k=0; k < 16; ++k) {
+                    block[k] ^= iv[k];
+                }
+            } else {
+                for (let k=0; k < 16; ++k) {
+                    block[k] ^= previous_block[k];
+                }
+            }
+            aesBlockEncrypt(block, key, size, round_keys);
+            for (let j=0; j < 16; ++j) {
+                previous_block[j] = block[j];
                 bytes[16 * i + j] = block[j];
             }
         }
