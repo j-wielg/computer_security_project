@@ -170,6 +170,7 @@ export function printBlock(block: number[]) {
     let outStr = "";
     for (let i=0; i < 4; ++i) {
         for (let j=0; j < 4; ++j) {
+            if (4*i + j >= block.length) return outStr;
             outStr += block[4*i + j].toString(16).padStart(2, "0");
         }
         if (i != 3) outStr += " ";
@@ -512,6 +513,7 @@ export function aesDecrypt(
     }
     // Removes padding while looking for the sentinel
     let byte = bytes.pop();
+    console.log('here');
     if (byte != 0) {
         return false;
     }

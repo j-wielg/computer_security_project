@@ -262,6 +262,7 @@ export function AES() {
       res.push(printBlock(data.slice(i*16, (i+1)*16)));
     }
     setAesResult(res);
+    setResultType('binary');
     setAesError("");
   }
 
@@ -288,13 +289,30 @@ export function AES() {
     }
     // Step 2: Turn the data string into an array of bytes
     let data: number[] = [];
+    let white: string = " -_\n";
     if (aesData.startsWith("0b")) {
-      for (let i=2; i < aesData.length; i += 8) {
-        data.push(Number("0b" + aesData.slice(i, i+8)));
+      let bytestr: string = "0b";
+      for (let i=2; i < aesData.length; ++i) {
+        if (white.includes(aesData[i])) {continue;}
+        bytestr += aesData[i];
+        if (bytestr.length == 10) {
+          data.push(Number(bytestr));
+          bytestr = "0b";
+        }
       }
     } else {
-      for (let i=2; i < aesData.length; i += 2) {
-        data.push(Number("0x" + aesData.slice(i, i+2)));
+      let i=0;
+      if (aesData.startsWith("0x")) {
+        i = 2;
+      }
+      let bytestr: string = "0x";
+      for (; i < aesData.length; ++i) {
+        if (white.includes(aesData[i])) {continue;}
+        bytestr += aesData[i];
+        if (bytestr.length == 4) {
+          data.push(Number(bytestr));
+          bytestr = "0x";
+        }
       }
     }
     // Step 3: Get the IV
@@ -323,12 +341,15 @@ export function AES() {
     let res: string[] = [];
     if (output_type == 0) {
       setResultType('binary');
-      for (let i=0; i < (data.length / 16); ++i) {
+      for (let i=0; i < data.length / 16; ++i) {
         res.push(printBlock(data.slice(i*16, (i+1)*16)));
       }
     } else if (output_type == 1) {
       setResultType('ascii');
+      let s: string = data.map((x) => String.fromCharCode(x)).join("");
+      res = s.split('\n');
     }
+    setAesResult(res);
   }
 
   return (
