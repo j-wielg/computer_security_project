@@ -27,6 +27,7 @@ export default function Home() {
   const [aesKeyInputStatus, setAesKeyInputStatus] = useState("");
   const [aesKeyWarning, setAesKeyWarning] = useState(false);
   const [aesKeySize, setAesKeySize] = useState(128);
+  const [blockMode, setBlockMode] = useState(0);
 
   const handleVigenereEncrypt = () => {
     const encrypted = vigenereEncrypt(vigenereText, vigenereKey);
@@ -239,10 +240,11 @@ export default function Home() {
                 <Label htmlFor="aes-mode">AES Block Mode</Label>
                 <select 
                   className="bg-muted px-2 py-2 outline"
+                  onChange={(e) => setBlockMode(Number(e.target.value))}
                 >
-                  <option value="ECB">Electronic Codebook</option>
-                  <option value="CBC">Cipherblock Chaining</option>
-                  <option value="CTR">Counter</option>
+                  <option value="0">Electronic Codebook</option>
+                  <option value="1">Cipherblock Chaining</option>
+                  <option value="2">Counter</option>
                 </select>
               </div>
               <div className="space-y-2">
