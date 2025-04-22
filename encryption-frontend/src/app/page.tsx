@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Input, TextArea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
@@ -30,6 +30,7 @@ export default function Home() {
   const [blockMode, setBlockMode] = useState(0);
   const [aesData, setAesData] = useState("");
   const [aesDataType, setAesDataType] = useState("ascii");
+  const [aesResult, setAesResult] = useState("");
 
   const handleVigenereEncrypt = () => {
     const encrypted = vigenereEncrypt(vigenereText, vigenereKey);
@@ -53,35 +54,35 @@ export default function Home() {
 
   const handleAesKeyEnter = (value: string) => {
     setAesKey(value);
+    if (value.length == 0) {
+      setAesKeyInputStatus("");
+      setAesKeyWarning(false);
+      return;
+    }
     let len = 0;
     if (value.startsWith("0x")) {
-      let valid = "0123456789abcdefABCDEF _-"
+      let valid = "0123456789abcdefABCDEF _-\n"
       for (let c of value.slice(2)) {
         if (!valid.includes(c)) {
           setAesKeyInputStatus("Character '" + c + "' is invalid for hexadecimal input");
           return;
-        } else if (c != ' ' && c != '_' && c != '-') {
+        } else if (c != ' ' && c != '_' && c != '-' && c != '\n') {
           ++len;
         }
       }
     } else if (value.startsWith("0b")) {
-      let valid = "01 _-"
+      let valid = "01 _-\n"
       for (let c of value.slice(2)) {
         if (!valid.includes(c)) {
           setAesKeyInputStatus("Character '" + c + "' is invalid for binary input");
           return;
-        } else if (c != ' ' && c != '_' && c != '-') {
+        } else if (c != ' ' && c != '_' && c != '-' && c != '\n') {
           ++len;
         }     
       }
     } else {
-      let valid = "0123456789 _-"
-      for (let c of value) {
-        if (!valid.includes(c)) {
-          setAesKeyInputStatus("Character '" + c + "' is invalid for decimal input");
-          return;
-        }     
-      }
+      setAesKeyInputStatus("Key must be in either binary or hexadecimal format");
+      return;
     }
     if (value.startsWith("0x")) {
       if (len < aesKeySize / 4) {
@@ -113,7 +114,12 @@ export default function Home() {
   }
 
   const handleAesEncrypt = () => {
-
+    // Step 1: Turn the key string into a bigint
+    // Step 2: Turn the data string into an array of bytes
+    //      Step 2a: If the data string is binary/hex, parse it
+    //      Step 2b: If the data string is ASCII, get the char codes
+    // Step 3: Do the encryption
+    // Step 4: Print the encrypted blocks
   }
 
   const handleAesDecrypt = () => {
@@ -269,7 +275,7 @@ export default function Home() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="aes-key">AES Key</Label>
-                <Input
+                <TextArea
                   id="aes-key"
                   value={aesKey}
                   onChange={(e) => handleAesKeyEnter(e.target.value)}
@@ -281,7 +287,7 @@ export default function Home() {
                     <p className="text-red-700 text-sm">{aesKeyInputStatus}</p>
                   </div>
                 )}
-                {aesKeyWarning && (
+                {aesKeyWarning && aesKeyInputStatus.length == 0 && (
                   <div>
                     <p className="text-yellow-700 text-sm">Keys under {aesKeySize} bits will be left-padded with zeros</p>
                   </div>
@@ -289,7 +295,7 @@ export default function Home() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="aes-data">Data</Label>
-                <Input
+                <TextArea
                   id="aes-data"
                   value={aesData}
                   onChange={(e) => setAesData(e.target.value)}
