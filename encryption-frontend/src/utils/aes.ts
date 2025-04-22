@@ -243,6 +243,25 @@ export function aesEncrypt(
                 bytes[16 * i + j] = block[j];
             }
         }
+    } else if (mode == 2) {
+        let block: number[] = [];
+        for (let i=0; i < num_blocks; ++i) {
+            for (let k=0; k < 12; ++k) {
+                block[k] = iv[k];
+            }
+            let mask = 0xFF000000;
+            let shift = 24;
+            for (let k=12; k < 16; ++k) {
+                let byte = (i & mask) >>> shift;
+                block[k] = byte;
+                mask >>>= 8;
+                shift -= 8;
+            }
+            aesBlockEncrypt(block, key, size, round_keys);
+            for (let j=0; j < 16; ++j) {
+                bytes[j + 16*i] ^= block[j];
+            }
+        }
     }
 }
 
