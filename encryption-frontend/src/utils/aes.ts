@@ -1,3 +1,5 @@
+// Value of the S box for AES
+// Values were found at 'https://en.wikipedia.org/wiki/Rijndael_S-box'
 const AESBOX = [
     [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76],
     [0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0],
@@ -16,6 +18,19 @@ const AESBOX = [
     [0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf],
     [0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16]
 ]
+// Values of the round-key constant
+const RCON = [
+    0x01000000,
+    0x02000000,
+    0x04000000,
+    0x08000000,
+    0x10000000,
+    0x20000000,
+    0x40000000,
+    0x80000000,
+    0x1B000000,
+    0x36000000
+];
 
 
 /**
@@ -54,4 +69,60 @@ function aesSBox(byte: number) : number {
     let row = (byte & 0xF0) >> 4;
     let column = byte & 0x0F;
     return AESBOX[row][column];
+}
+
+/**
+ * Implements round key generation for the AES algorithm
+ */
+function aesKeygen(key: bigint, size: number) {
+    const RotWord = (value: number) => {
+        let byte = value & 0xFF000000;
+        value = (value << 8) & 0xFFFFFFFF;
+        value |= (byte >> 24);
+        return value;
+    }
+    const SubWord = (value: number) => {
+        let output = 0;
+        for (let i=0; i<4; ++i) {
+            let byte = value & (0xFF << (8 * i))
+            byte >>= 8 * i;
+            byte = aesSBox(byte);
+            output |= (byte << (8 * i));
+        }
+        return output;
+    }
+    let N = 0, R = 0;
+    if (size == 128) {
+        N = 4;
+        R = 11;
+    } else if (size == 192) {
+        N = 6;
+        R = 13;
+    } else if (size == 256) {
+        N = 8;
+        R = 15;
+    }
+    let W: number[] = []
+    let K: number[] = []
+    for (let i=0; i < N; ++i) {
+        let mask = BigInt(0xFFFFFFFF) << BigInt(32 * (N - i + 1))
+        let value = mask & key
+        key >>= BigInt(32 * (N - i + 1))
+        K[i] = Number(key)
+    }
+    for (let i=0; i < 4*R - 1; ++i) {
+        if (i < N) {
+            W[i] = K[i];
+        } else if (i % N == 0) {
+            W[i] = (
+                W[i - N] ^ 
+                SubWord(RotWord(W[i-1])) ^ 
+                RCON[Math.trunc(i / N) - 1]
+            );
+        } else if ((N > 6) && (i % N == 4)) {
+            W[i] = W[i - N] + SubWord(W[i - 1]);
+        } else {
+            W[i] = W[i - N] ^ W[i - 1];
+        }
+    }
 }
