@@ -125,7 +125,6 @@ function permute(permutation: number[], value: bigint, size: number): bigint {
     return result;
 }
 
-
 /**
  * Function which applies a round left-shift on a value
  */
@@ -139,7 +138,6 @@ function lshift(value: bigint, amount: number, size: number): bigint {
     }
     return value;
 }
-
 
 /**
  * Function which generates the round keys according to the DES key schedule.
@@ -191,7 +189,6 @@ function F(R: bigint, key: bigint): bigint {
     return output;
 }
 
-
 /**
  * Encrypts a single block of data using the DES algorithm.
  *
@@ -212,7 +209,6 @@ function desBlockEncrypt(block: bigint, round_keys: bigint[]): bigint {
     return permute(IP_inv, output, 64);
 }
 
-
 /**
  * Decrypts a single block of data using the DES algorithm.
  *
@@ -231,4 +227,73 @@ function desBlockDecrypt(block: bigint, round_keys: bigint[]) : bigint {
     }
     let output = (R << BigInt(32)) | L;
     return permute(IP_inv, output, 64);
+}
+
+/**
+ * Encrypts a series of bytes by applying the DES algorithm 3 times
+ *
+ * @param bytes - An array of bytes which represents the data to encrypt.
+ * @param key1 - A 64-bit key
+ * @param key2 - A 64-bit key
+ * @param key3 - A 64-bit key
+ * @param mode - The block mode to encrypt with. Allowed values are:
+ * 0. Electronic Codebook (EBC)
+ * 1. Cipherblock Chain (CBC)
+ * 2. Counter (CTR)
+ * @param iv - The initialization vector for CBC and nonce for CTR
+ */
+export function tdesEncrypt(
+    bytes: number[], 
+    key1: bigint,
+    key2: bigint,
+    key3: bigint,
+    mode: number,
+    iv: bigint = BigInt(0)
+): Array<bigint> {
+    // Generates the round keys
+    let rkeys_1 = desKeygen(key1);
+    let rkeys_2 = desKeygen(key2);
+    let rkeys_3 = desKeygen(key3);
+    // Adds a sentinel to the end of the data
+    bytes.push(0xFF);
+    bytes.push(0x00);
+    while (bytes.length % 8 != 0) {
+        bytes.push(0x00);
+    }
+    let encrypted: bigint[] = [];
+    let block: bigint = BigInt(0);
+    let prev: bigint = iv;
+    if (mode == 2) {
+        let mask = BigInt(0xFF_FF_FF_FF_FF_FF);
+        iv &= mask;
+        iv <<= BigInt(16);
+    }
+    // Encrypts the data in blocks
+    for (let i=0; i < bytes.length / 8; ++i) {
+        for (let k=0; k < 8; ++k) {
+            block |= BigInt(bytes[(8*i) + k]);
+            block <<= BigInt(8);
+        }
+        if (mode == 0) {
+            block = desBlockEncrypt(block, rkeys_1);
+            block = desBlockEncrypt(block, rkeys_2);
+            block = desBlockEncrypt(block, rkeys_3);
+        } else if (mode == 1) {
+            block ^= prev;
+            block = desBlockEncrypt(block, rkeys_1);
+            block = desBlockEncrypt(block, rkeys_2);
+            block = desBlockEncrypt(block, rkeys_3);
+            prev = block;
+        } else if (mode == 2) {
+            let temp = iv;
+            temp = desBlockEncrypt(temp, rkeys_1);
+            temp = desBlockEncrypt(temp, rkeys_2);
+            temp = desBlockEncrypt(temp, rkeys_3);
+            block ^= temp;
+            ++iv;
+        }
+        encrypted.push(block);
+        block = BigInt(0);
+    }
+    return encrypted;
 }
