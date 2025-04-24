@@ -513,7 +513,6 @@ export function aesDecrypt(
     }
     // Removes padding while looking for the sentinel
     let byte = bytes.pop();
-    console.log('here');
     if (byte != 0) {
         return false;
     }
