@@ -258,8 +258,11 @@ export function AES() {
     aesEncrypt(data, blockMode, aesKeySize, key, iv);
     // Step 5: Print the encrypted blocks
     let res: string[] = [];
-    for (let i=0; i < (data.length / 16); ++i) {
-      res.push(printBlock(data.slice(i*16, (i+1)*16)));
+    for (let i=0; i < (data.length / 16); i += 2) {
+      res.push(
+        printBlock(data.slice(i*16, (i+1)*16)) + " " +
+        printBlock(data.slice((i+1)*16, (i+2)*16))
+      );
     }
     setAesResult(res);
     setResultType('binary');
