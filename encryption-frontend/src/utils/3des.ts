@@ -271,8 +271,8 @@ export function tdesEncrypt(
     // Encrypts the data in blocks
     for (let i=0; i < bytes.length / 8; ++i) {
         for (let k=0; k < 8; ++k) {
-            block |= BigInt(bytes[(8*i) + k]);
             block <<= BigInt(8);
+            block |= BigInt(bytes[(8*i) + k]);
         }
         if (mode == 0) {
             block = desBlockEncrypt(block, rkeys_1);
@@ -296,4 +296,82 @@ export function tdesEncrypt(
         block = BigInt(0);
     }
     return encrypted;
+}
+
+
+/**
+ * Decrypts an array of DES-encrypted blocks.
+ *
+ * @param blocks - An array of 64-bit blocks encrypted with 3DES
+ * @param key1 - A 64-bit key
+ * @param key2 - A 64-bit key
+ * @param key3 - A 64-bit key
+ * @param mode - The block mode used to encrypt the data.
+ * 0. Electronic Codebook (EBC)
+ * 1. Cipherblock Chain (CBC)
+ * 2. Counter (CTR)
+ * @param iv - The initialization vector for CBC and nonce for CTR
+ *
+ * @returns An array of plaintext bytes, or [] on failed decryption
+ */
+export function tdesDecrypt(
+    blocks: bigint[], 
+    key1: bigint,
+    key2: bigint,
+    key3: bigint,
+    mode: number,
+    iv: bigint = BigInt(0)
+): Array<number> {
+    // Generates the round keys
+    let rkeys_1 = desKeygen(key1);
+    let rkeys_2 = desKeygen(key2);
+    let rkeys_3 = desKeygen(key3);
+    let decrypted: number[] = []
+    let prev: bigint = iv;
+    let temp = BigInt(0);
+    if (mode == 2) {
+        let mask = BigInt(0xFF_FF_FF_FF_FF_FF);
+        iv &= mask;
+        iv <<= BigInt(16);
+    }
+    for (let block of blocks) {
+        if (mode == 0) {
+            block = desBlockDecrypt(block, rkeys_3);
+            block = desBlockDecrypt(block, rkeys_2);
+            block = desBlockDecrypt(block, rkeys_1);
+        } else if (mode == 1) {
+            temp = block;
+            block = desBlockDecrypt(block, rkeys_3);
+            block = desBlockDecrypt(block, rkeys_2);
+            block = desBlockDecrypt(block, rkeys_1);
+            block ^= prev;
+            prev = temp;
+        } else if (mode == 2) {
+            let temp = iv;
+            temp = desBlockEncrypt(temp, rkeys_1);
+            temp = desBlockEncrypt(temp, rkeys_2);
+            temp = desBlockEncrypt(temp, rkeys_3);
+            block ^= temp;
+            ++iv;
+        }
+        let mask = BigInt(0xFF) << BigInt(7*8);
+        let shift = 7*8;
+        for (let i=0; i < 8; ++i) {
+            let byte = (mask & block) >> BigInt(shift);
+            decrypted.push(Number(byte));
+            mask >>= BigInt(8);
+            shift -= 8;
+        }
+    }
+    let byte = decrypted.pop();
+    if (byte != 0x00) {
+        return [];
+    }
+    while (byte == 0x00) {
+        byte = decrypted.pop();
+    }
+    if (byte != 0xFF) {
+        return [];
+    }
+    return decrypted;
 }
