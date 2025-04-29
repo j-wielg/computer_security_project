@@ -444,6 +444,7 @@ export function AES() {
         >
           <option value="ascii">ASCII Text</option>
           <option value="binary">Binary</option>
+          <option value="file">File Upload</option>
         </select>
       </div>
       <div className="space-y-2">
@@ -470,7 +471,7 @@ export function AES() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="aes-data">Data</Label>
-        {aesDataType === "binary" ? (
+        {aesDataType === "file" ? (
           <div className="space-y-2">
             <Input type="file" onChange={handleFileUpload} className="w-full" />
             {uploadedFile && (
@@ -545,9 +546,9 @@ export function AES() {
           )}
         </div>
       )}
-      {processedData && aesResult.length > 0 && (
+      {processedData && aesResult.length > 0 && aesDataType == "file" && (
         <div className="mt-4">
-          <Button onClick={handleDownload}>Download Processed File</Button>
+          <Button onClick={handleDownload}>Download Result</Button>
         </div>
       )}
       {aesError && (
