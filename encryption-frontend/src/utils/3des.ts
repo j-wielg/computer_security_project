@@ -249,7 +249,7 @@ export function tdesEncrypt(
     key3: bigint,
     mode: number,
     iv: bigint = BigInt(0)
-): Array<bigint> {
+) {
     // Generates the round keys
     let rkeys_1 = desKeygen(key1);
     let rkeys_2 = desKeygen(key2);
@@ -260,7 +260,6 @@ export function tdesEncrypt(
     while (bytes.length % 8 != 0) {
         bytes.push(0x00);
     }
-    let encrypted: bigint[] = [];
     let block: bigint = BigInt(0);
     let prev: bigint = iv;
     if (mode == 2) {
@@ -292,17 +291,23 @@ export function tdesEncrypt(
             block ^= temp;
             ++iv;
         }
-        encrypted.push(block);
+        let mask = BigInt(0xFF) << BigInt(7*8);
+        let shift = 7*8;
+        for (let k=0; k < 8; ++k) {
+            let byte = (mask & block) >> BigInt(shift);
+            bytes[(8*i) + k] = Number(byte);
+            mask >>= BigInt(8);
+            shift -= 8;
+        }
         block = BigInt(0);
     }
-    return encrypted;
 }
 
 
 /**
  * Decrypts an array of DES-encrypted blocks.
  *
- * @param blocks - An array of 64-bit blocks encrypted with 3DES
+ * @param bytes- An array of encrypted bytes
  * @param key1 - A 64-bit key
  * @param key2 - A 64-bit key
  * @param key3 - A 64-bit key
@@ -312,21 +317,23 @@ export function tdesEncrypt(
  * 2. Counter (CTR)
  * @param iv - The initialization vector for CBC and nonce for CTR
  *
- * @returns An array of plaintext bytes, or [] on failed decryption
+ * @returns Whether the decryption was successful
  */
 export function tdesDecrypt(
-    blocks: bigint[], 
+    bytes: number[], 
     key1: bigint,
     key2: bigint,
     key3: bigint,
     mode: number,
     iv: bigint = BigInt(0)
-): Array<number> {
+): boolean {
     // Generates the round keys
     let rkeys_1 = desKeygen(key1);
     let rkeys_2 = desKeygen(key2);
     let rkeys_3 = desKeygen(key3);
-    let decrypted: number[] = []
+    if (bytes.length  % 8 != 0) {
+        return false;
+    }
     let prev: bigint = iv;
     let temp = BigInt(0);
     if (mode == 2) {
@@ -334,7 +341,12 @@ export function tdesDecrypt(
         iv &= mask;
         iv <<= BigInt(16);
     }
-    for (let block of blocks) {
+    for (let i=0; i < bytes.length / 8; ++i) {
+        let block = BigInt(0);
+        for (let k=0; k < 8; ++k) {
+            block <<= BigInt(8);
+            block |= BigInt(bytes[(8*i) + k]);
+        }
         if (mode == 0) {
             block = desBlockDecrypt(block, rkeys_3);
             block = desBlockDecrypt(block, rkeys_2);
@@ -356,22 +368,22 @@ export function tdesDecrypt(
         }
         let mask = BigInt(0xFF) << BigInt(7*8);
         let shift = 7*8;
-        for (let i=0; i < 8; ++i) {
+        for (let k=0; k < 8; ++k) {
             let byte = (mask & block) >> BigInt(shift);
-            decrypted.push(Number(byte));
+            bytes[(8*i) + k] = Number(byte);
             mask >>= BigInt(8);
             shift -= 8;
         }
     }
-    let byte = decrypted.pop();
+    let byte = bytes.pop();
     if (byte != 0x00) {
-        return [];
+        return false;
     }
     while (byte == 0x00) {
-        byte = decrypted.pop();
+        byte = bytes.pop();
     }
     if (byte != 0xFF) {
-        return [];
+        return false;
     }
-    return decrypted;
+    return true;
 }
