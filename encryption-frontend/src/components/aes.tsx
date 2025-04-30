@@ -569,12 +569,12 @@ export function AES() {
           <p className="text-lg font-semibold underline">Result:</p>
           {resultType == "binary" ? (
             <>
-              {aesResult.slice(0, 3).map((line, index) => (
+              {aesResult.slice(0, 10).map((line, index) => (
                 <p className="font-mono" key={index}>
                   {line}
                 </p>
               ))}
-              {aesResult.length > 3 && <p className="font-mono">...</p>}
+              {aesResult.length > 10 && <p className="font-mono">...</p>}
             </>
           ) : (
             aesResult.map((line, index) => <p key={index}>{line}</p>)
