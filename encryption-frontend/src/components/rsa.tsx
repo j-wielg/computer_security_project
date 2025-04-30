@@ -26,7 +26,7 @@ export function RSA() {
   const [d, setD] = useState<bigint>(BigInt(0));
 
   useEffect(() => {
-    // Generate default keys on component mount
+    // Generate default keys on component mount using the test's primes
     const [defaultE, defaultN, defaultD] = rsaKeyGenDefault();
     setE(defaultE);
     setN(defaultN);
@@ -44,12 +44,32 @@ export function RSA() {
         const arrayBuffer = e.target?.result as ArrayBuffer;
         const uint8Array = new Uint8Array(arrayBuffer);
         setProcessedData(uint8Array);
-        setRsaText(
-          "0x" +
-            Array.from(uint8Array)
-              .map((b) => b.toString(16).padStart(2, "0"))
-              .join("")
-        );
+
+        // If it's likely an encrypted file (has _encrypted in name)
+        if (file.name.includes("_encrypted")) {
+          // Parse as 8-byte chunks for decryption
+          const chunks: bigint[] = [];
+          for (let i = 0; i < uint8Array.length; i += 8) {
+            const chunkBytes = uint8Array.slice(
+              i,
+              Math.min(i + 8, uint8Array.length)
+            );
+            let hexStr = "";
+            for (const byte of chunkBytes) {
+              hexStr += byte.toString(16).padStart(2, "0");
+            }
+            chunks.push(BigInt("0x" + hexStr));
+          }
+          setRsaText(chunks.join(","));
+        } else {
+          // Regular file, display as hex
+          setRsaText(
+            "0x" +
+              Array.from(uint8Array)
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("")
+          );
+        }
       };
       reader.readAsArrayBuffer(file);
     }
@@ -58,15 +78,32 @@ export function RSA() {
   const handleDownload = () => {
     if (!processedData) return;
 
+    // Create appropriate file type and name
     const blob = new Blob([processedData], {
       type: "application/octet-stream",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = uploadedFile
-      ? `processed_${uploadedFile.name}`
-      : "processed_file.bin";
+
+    // Add suffix to filename to indicate encryption/decryption
+    let filename = "processed_file.bin";
+    if (uploadedFile) {
+      const nameParts = uploadedFile.name.split(".");
+      const extension = nameParts.length > 1 ? `.${nameParts.pop()}` : "";
+      const baseName = nameParts.join(".");
+
+      // Check if we're showing result (after encryption) or original data
+      if (rsaResult.includes(",")) {
+        // This is encrypted data
+        filename = `${baseName}_encrypted${extension}`;
+      } else {
+        // This is decrypted data
+        filename = `${baseName}_decrypted${extension}`;
+      }
+    }
+
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -75,57 +112,60 @@ export function RSA() {
 
   const handleRsaEncrypt = () => {
     try {
+      let dataToEncrypt: Uint8Array;
+
       if (inputDataType === "ascii") {
         // Convert ASCII text to bytes
-        const textBytes = new TextEncoder().encode(rsaText);
-
-        // Calculate chunk size (leaving room for sentinel)
-        const maxChunkSize = Math.floor(n.toString(2).length / 8) - 3; // Convert to bytes and leave room for sentinel
-        const chunks: bigint[] = [];
-
-        // Split into chunks and encrypt each one
-        for (let i = 0; i < textBytes.length; i += maxChunkSize) {
-          const chunkBytes = new Uint8Array(
-            Math.min(maxChunkSize + 2, textBytes.length - i + 2)
-          );
-          chunkBytes.set(textBytes.slice(i, i + maxChunkSize));
-          // Add sentinel to last chunk only
-          if (i + maxChunkSize >= textBytes.length) {
-            chunkBytes[textBytes.length - i] = 0xff;
-            chunkBytes[textBytes.length - i + 1] = 0xff;
-          }
-          const chunk = BigInt(
-            "0x" +
-              Array.from(chunkBytes)
-                .map((b) => b.toString(16).padStart(2, "0"))
-                .join("")
-          );
-          chunks.push(rsaEncrypt(chunk, e, n));
-        }
-
-        setRsaResult(chunks.join(","));
+        dataToEncrypt = new TextEncoder().encode(rsaText);
       } else {
         // For binary data, use the processed data directly
         if (!processedData) return;
+        dataToEncrypt = processedData;
+      }
 
-        // Calculate chunk size
-        const maxChunkSize = Math.floor(n.toString(2).length / 8); // Convert to bytes
-        const chunks: bigint[] = [];
+      const chunks: bigint[] = [];
 
-        // Split into chunks and encrypt each one
-        for (let i = 0; i < processedData.length; i += maxChunkSize) {
-          const chunkBytes = processedData.slice(i, i + maxChunkSize);
-          const chunk = BigInt(
-            "0x" +
-              Array.from(chunkBytes)
-                .map((b) => b.toString(16).padStart(2, "0"))
-                .join("")
-          );
-          chunks.push(rsaEncrypt(chunk, e, n));
+      // Encrypt each 4-byte chunk exactly as in rsaFileTest.ts
+      for (let i = 0; i < dataToEncrypt.length; i += 4) {
+        // Get 4 bytes or less for the last chunk
+        const chunkBytes = dataToEncrypt.slice(
+          i,
+          Math.min(i + 4, dataToEncrypt.length)
+        );
+
+        // Convert bytes to hex and then to BigInt (padding to 4 bytes if needed)
+        let hexStr = "";
+        for (const byte of chunkBytes) {
+          hexStr += byte.toString(16).padStart(2, "0");
+        }
+        // Pad to 8 hex chars (4 bytes) if needed
+        while (hexStr.length < 8) {
+          hexStr += "00";
         }
 
-        setRsaResult(chunks.join(","));
+        const chunk = BigInt("0x" + hexStr);
+        const encryptedChunk = rsaEncrypt(chunk, e, n);
+        chunks.push(encryptedChunk);
       }
+
+      // Store in comma-separated format for display
+      setRsaResult(chunks.join(","));
+
+      // Create binary representation for download (8 bytes per chunk)
+      const encryptedBytes: number[] = [];
+      for (const chunk of chunks) {
+        // Convert each chunk to 8 bytes (64 bits)
+        let hexStr = chunk.toString(16);
+        // Pad to 16 hex chars (8 bytes)
+        hexStr = hexStr.padStart(16, "0");
+
+        // Convert to bytes
+        for (let i = 0; i < hexStr.length; i += 2) {
+          encryptedBytes.push(parseInt(hexStr.substring(i, i + 2), 16));
+        }
+      }
+
+      setProcessedData(new Uint8Array(encryptedBytes));
     } catch (error) {
       setRsaResult("Error: " + (error as Error).message);
     }
@@ -133,45 +173,75 @@ export function RSA() {
 
   const handleRsaDecrypt = () => {
     try {
-      // Split the input into chunks
-      const encryptedChunks = rsaText
-        .split(",")
-        .map((chunk) => BigInt(chunk.trim()));
+      // Determine if input is comma-separated chunks or we need to parse from processedData
+      let encryptedChunks: bigint[];
+
+      if (rsaText.includes(",")) {
+        // Input is already in comma-separated format
+        encryptedChunks = rsaText
+          .split(",")
+          .map((chunk) => BigInt(chunk.trim()));
+      } else if (processedData) {
+        // Input is binary data, parse as 8-byte chunks
+        encryptedChunks = [];
+        for (let i = 0; i < processedData.length; i += 8) {
+          const chunkBytes = processedData.slice(
+            i,
+            Math.min(i + 8, processedData.length)
+          );
+          let hexStr = "";
+          for (const byte of chunkBytes) {
+            hexStr += byte.toString(16).padStart(2, "0");
+          }
+          encryptedChunks.push(BigInt("0x" + hexStr));
+        }
+      } else {
+        throw new Error("No data to decrypt");
+      }
+
       const decryptedBytes: number[] = [];
 
-      // Decrypt each chunk
+      // Decrypt each chunk exactly as in rsaFileTest.ts
       for (const chunk of encryptedChunks) {
-        const message = rsaDecrypt(chunk, d, n);
-        let hexStr = message.toString(16);
-        if (hexStr.length % 2 !== 0) hexStr = "0" + hexStr;
+        const decrypted = rsaDecrypt(chunk, d, n);
 
-        // Convert to bytes
+        // Convert BigInt to hex string
+        let hexStr = decrypted.toString(16);
+
+        // Ensure even length
+        if (hexStr.length % 2 !== 0) {
+          hexStr = "0" + hexStr;
+        }
+
+        // Remove any padding zeros that are a result of the decryption process
+        // but preserve original content zeros
+        // Convert each byte (2 hex chars) to a number
         for (let i = 0; i < hexStr.length; i += 2) {
-          decryptedBytes.push(parseInt(hexStr.substr(i, 2), 16));
+          const byteVal = parseInt(hexStr.substring(i, i + 2), 16);
+          decryptedBytes.push(byteVal);
         }
       }
 
+      // Remove trailing zeros that might have been added during padding
+      let endIndex = decryptedBytes.length;
+      while (endIndex > 0 && decryptedBytes[endIndex - 1] === 0) {
+        endIndex--;
+      }
+
+      const finalDecryptedBytes = decryptedBytes.slice(0, endIndex);
+
       if (inputDataType === "ascii") {
-        // Find sentinel in the combined bytes
-        let textLength = 0;
-        for (let i = 0; i < decryptedBytes.length - 1; i++) {
-          if (decryptedBytes[i] === 0xff && decryptedBytes[i + 1] === 0xff) {
-            textLength = i;
-            break;
-          }
-        }
-
-        if (textLength === 0) {
-          throw new Error("Invalid decrypted data - no sentinel found");
-        }
-
         // Convert data bytes to text
-        const textBytes = new Uint8Array(decryptedBytes.slice(0, textLength));
-        const result = new TextDecoder().decode(textBytes);
-        setRsaResult(result);
+        const textBytes = new Uint8Array(finalDecryptedBytes);
+        try {
+          const result = new TextDecoder().decode(textBytes);
+          setRsaResult(result);
+        } catch (e) {
+          setRsaResult("Error decoding text: " + (e as Error).message);
+        }
       } else {
         // For binary data, update the processed data
-        const bytes = new Uint8Array(decryptedBytes);
+        const bytes = new Uint8Array(finalDecryptedBytes);
         setProcessedData(bytes);
         setRsaResult(
           "0x" +
