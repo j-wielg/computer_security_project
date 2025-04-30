@@ -226,6 +226,27 @@ export function AES() {
     setInitVectorStatus("");
   };
 
+  const getBinaryData = (): number[] => {
+    const whitespace = "-_ \t\n";
+    let data: number[] = [];
+    let i=0;
+    if (aesData.startsWith("0x")) {
+      i = 2;
+    }
+    let bytestr: string = "0x";
+    for (; i < aesData.length; ++i) {
+      if (whitespace.includes(aesData[i])) {
+        continue;
+      }
+      bytestr += aesData[i];
+      if (bytestr.length == 4) {
+        data.push(Number(bytestr));
+        bytestr = "0x";
+      }
+    }
+    return data;
+  }
+
   const handleAesEncrypt = () => {
     // Step 1: Turn the key string into a bigint
     const whitespace = " _-\n";
@@ -253,6 +274,8 @@ export function AES() {
     let data: number[];
     if (aesDataType == "ascii") {
       data = aesData.split("").map((x) => x.charCodeAt(0));
+    } else if (aesDataType == "binary") {
+      data = getBinaryData();
     } else {
       if (!processedData) {
         setAesError("No file uploaded");
@@ -319,6 +342,8 @@ export function AES() {
     let data: number[];
     if (aesDataType == "ascii") {
       data = aesData.split("").map((x) => x.charCodeAt(0));
+    } else if (aesDataType == "binary") {
+      data = getBinaryData();
     } else {
       if (!processedData) {
         setAesError("No file uploaded");
@@ -518,15 +543,25 @@ export function AES() {
         {!aesKeyInputStatus && !initVectorStatus && !dataStatus && (
           <Button onClick={handleAesEncrypt}>Encrypt</Button>
         )}
-        {aesDataType != "ascii" && aesKeyInputStatus.length == 0 && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              handleAesDecrypt(0);
-            }}
-          >
-            Decrypt
-          </Button>
+        {!dataStatus && aesDataType != "ascii" && aesKeyInputStatus.length == 0 && (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                handleAesDecrypt(0);
+              }}
+            >
+              Decrypt
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                handleAesDecrypt(1);
+              }}
+            >
+              Decrypt as ASCII
+            </Button>
+          </div>
         )}
       </div>
       {aesResult.length > 0 && (
