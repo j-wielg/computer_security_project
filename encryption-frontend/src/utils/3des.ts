@@ -275,18 +275,18 @@ export function tdesEncrypt(
         }
         if (mode == 0) {
             block = desBlockEncrypt(block, rkeys_1);
-            block = desBlockEncrypt(block, rkeys_2);
+            block = desBlockDecrypt(block, rkeys_2);
             block = desBlockEncrypt(block, rkeys_3);
         } else if (mode == 1) {
             block ^= prev;
             block = desBlockEncrypt(block, rkeys_1);
-            block = desBlockEncrypt(block, rkeys_2);
+            block = desBlockDecrypt(block, rkeys_2);
             block = desBlockEncrypt(block, rkeys_3);
             prev = block;
         } else if (mode == 2) {
             let temp = iv;
             temp = desBlockEncrypt(temp, rkeys_1);
-            temp = desBlockEncrypt(temp, rkeys_2);
+            temp = desBlockDecrypt(temp, rkeys_2);
             temp = desBlockEncrypt(temp, rkeys_3);
             block ^= temp;
             ++iv;
@@ -349,19 +349,19 @@ export function tdesDecrypt(
         }
         if (mode == 0) {
             block = desBlockDecrypt(block, rkeys_3);
-            block = desBlockDecrypt(block, rkeys_2);
+            block = desBlockEncrypt(block, rkeys_2);
             block = desBlockDecrypt(block, rkeys_1);
         } else if (mode == 1) {
             temp = block;
             block = desBlockDecrypt(block, rkeys_3);
-            block = desBlockDecrypt(block, rkeys_2);
+            block = desBlockEncrypt(block, rkeys_2);
             block = desBlockDecrypt(block, rkeys_1);
             block ^= prev;
             prev = temp;
         } else if (mode == 2) {
             let temp = iv;
             temp = desBlockEncrypt(temp, rkeys_1);
-            temp = desBlockEncrypt(temp, rkeys_2);
+            temp = desBlockDecrypt(temp, rkeys_2);
             temp = desBlockEncrypt(temp, rkeys_3);
             block ^= temp;
             ++iv;
